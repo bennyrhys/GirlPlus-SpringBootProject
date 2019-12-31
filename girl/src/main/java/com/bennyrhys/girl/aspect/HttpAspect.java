@@ -11,6 +11,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 
+/**
+ * 拦截-运行前后
+ */
 @Aspect //aop标识
 @Component //添加到容器
 public class HttpAspect {

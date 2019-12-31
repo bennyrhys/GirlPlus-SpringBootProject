@@ -1,6 +1,8 @@
 package com.bennyrhys.girl.service;
 
 import com.bennyrhys.girl.domain.Girl;
+import com.bennyrhys.girl.enums.ResultEnum;
+import com.bennyrhys.girl.exception.GirlException;
 import com.bennyrhys.girl.repository.GirlRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -41,11 +43,11 @@ public class GirlService {
             Integer age = girl.getAge();
             if(age < 10){
                 //【	，10），返回“应该在上小学”
-                throw new Exception("应该在上小学");
+                throw new GirlException(ResultEnum.PRIMARY_SCHOOL);
 
             }else if (age >= 10 && age <16){
                 //【10，16），返回“可能在上初中”
-                throw new Exception("可能在上初中");
+                throw new GirlException(ResultEnum.MIDDLE_SCHOOL);
 
             }
         }

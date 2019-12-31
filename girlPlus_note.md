@@ -785,5 +785,347 @@ http://localhost:8081/girl/girls/getAge/3
 
 ## 捕获异常封装返回json
 
+新建
 
+- handle包
+  - ExceptionHandle.java
+
+```java
+package com.bennyrhys.girl.handle;
+
+import com.bennyrhys.girl.domain.Result;
+import com.bennyrhys.girl.utils.ResultUtil;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+/**
+ * 异常捕获
+ */
+@ControllerAdvice
+public class ExceptionHandle {
+    //声明捕获哪个类
+    @ExceptionHandler(value = Exception.class)
+    @ResponseBody //因为要返回给浏览器，上面又没写@restcontroller
+    public Result handle(Exception e){
+        return ResultUtil.error(100,e.getMessage());
+    }
+}
+```
+
+响应捕获后的封装信息
+
+> //**不足之处返回code都是100**，在exception中只能传一个msg
+>
+> http://localhost:8081/girl/girls/getAge/3
+>
+> {
+>
+> ​    "code": 100,
+>
+> ​    "msg": "应该在上小学",
+>
+> ​    "data": null
+>
+> }
+>
+> http://localhost:8081/girl/girls/getAge/4
+>
+> {
+>
+> ​    "code": 100,
+>
+> ​    "msg": "可能在上初中",
+>
+> ​    "data": null
+>
+> }
+
+## 重写Exception-多状态码
+
+创建
+
+- exception包
+  - GirlException.java
+
+```java
+package com.bennyrhys.girl.exception;
+
+/**
+ * 重写Exception-多状态码
+ *
+ * 注意：
+ * 继承RuntimeException
+ * 因为spring事务回滚针对RuntimeException，而RuntimeException继承Exception。
+ * Exception不回滚
+ */
+public class GirlException extends RuntimeException{
+    private Integer code;
+    //get/set/构造
+
+    public GirlException(Integer code,String message) {
+        //添加字段message，父类本身就会传一个message进去
+        super(message);
+        this.code = code;
+    }
+
+
+    public Integer getCode() {
+        return code;
+    }
+
+    public void setCode(Integer code) {
+        this.code = code;
+    }
+}
+```
+
+GirlService:抛出GirlException
+
+```java
+/**
+ * 获取女生年龄做判断
+ * 【   ，10），返回“应该在上小学”
+ *
+ * 【10，16），返回“可能在上初中”
+ */
+public void getAge(Integer id)throws Exception{
+    Optional<Girl> optional = repository.findById(id);
+    if (optional.isPresent()){
+        Girl girl = optional.get();
+        Integer age = girl.getAge();
+        if(age < 10){
+            //【    ，10），返回“应该在上小学”
+            throw new GirlException(100,"应该在上小学");
+
+        }else if (age >= 10 && age <16){
+            //【10，16），返回“可能在上初中”
+            throw new GirlException(101,"可能在上初中");
+
+        }
+    }
+}
+```
+
+ExceptionHandle：捕获时判断是否是自己定义的GirlException抛出异常
+
+```java
+package com.bennyrhys.girl.handle;
+
+import com.bennyrhys.girl.domain.Result;
+import com.bennyrhys.girl.exception.GirlException;
+import com.bennyrhys.girl.utils.ResultUtil;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+/**
+ * 异常捕获
+ */
+@ControllerAdvice
+public class ExceptionHandle {
+    //声明捕获哪个类
+    @ExceptionHandler(value = Exception.class)
+    @ResponseBody //因为要返回给浏览器，上面又没写@restcontroller
+    public Result handle(Exception e){
+        //捕获时，判断一下异常是否是自己定义的GirlException
+        if (e instanceof GirlException){
+            GirlException girlException = (GirlException) e;
+            return ResultUtil.error(girlException.getCode(),girlException.getMessage());
+        }else {
+            return ResultUtil.error(-1,"未知错误");
+        }
+    }
+}
+```
+
+验证
+
+> http://localhost:8081/girl/girls/getAge/3
+>
+> {
+>
+> ​    "code": 100,
+>
+> ​    "msg": "应该在上小学",
+>
+> ​    "data": null
+>
+> }
+>
+> http://localhost:8081/girl/girls/getAge/4
+>
+> {
+>
+> ​    "code": 101,
+>
+> ​    "msg": "可能在上初中",
+>
+> ​    "data": null
+>
+> }
+>
+> http://localhost:8081/girl/girls/getAge/5
+>
+> {
+>
+> ​    "code": -1,
+>
+> ​    "msg": "未知错误",
+>
+> ​    "data": null
+>
+> }
+
+## 未知异常排除-打日志
+
+```java
+//日志
+private final static Logger logger = LoggerFactory.getLogger(ExceptionHandle.class);
+
+//将未知异常通过日志排除
+            logger.error("[系统异常]={}",e);
+```
+
+ExceptionHandle
+
+```java
+package com.bennyrhys.girl.handle;
+
+import com.bennyrhys.girl.domain.Result;
+import com.bennyrhys.girl.exception.GirlException;
+import com.bennyrhys.girl.utils.ResultUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+/**
+ * 异常捕获
+ */
+@ControllerAdvice
+public class ExceptionHandle {
+    //日志
+    private final static Logger logger = LoggerFactory.getLogger(ExceptionHandle.class);
+
+    //声明捕获哪个类
+    @ExceptionHandler(value = Exception.class)
+    @ResponseBody //因为要返回给浏览器，上面又没写@restcontroller
+    public Result handle(Exception e){
+        //捕获时，判断一下异常是否是自己定义的GirlException
+        if (e instanceof GirlException){
+            GirlException girlException = (GirlException) e;
+            return ResultUtil.error(girlException.getCode(),girlException.getMessage());
+        }else {
+            //将未知异常通过日志排除
+            logger.error("[系统异常]={}",e);
+            return ResultUtil.error(-1,"未知错误");
+        }
+    }
+}
+```
+
+## 管理异常code和msg-枚举
+
+创建枚举
+
+- enums包
+  - ResultEnum.java
+
+```java
+package com.bennyrhys.girl.enums;
+
+/**
+ * 管理异常code和msg-枚举
+ * 注意：枚举类型文件
+ */
+public enum ResultEnum {
+    UNKNOW_ERROR(-1,"未知错误"),
+    SUCCESS(0,"成功"),
+    PRIMARY_SCHOOL(100,"可能小学"),
+    MIDDLE_SCHOOL(101,"可能中学"),
+    ;
+    private Integer code;
+    private String msg;
+//    构造方法（两个参数），只get方法(因为枚举都是直接用构造方法创建，不用再set了)
+
+    ResultEnum(Integer code, String msg) {
+        this.code = code;
+        this.msg = msg;
+    }
+
+    public Integer getCode() {
+        return code;
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+}
+```
+
+GirlService: 返回枚举的类型，GirlException返回值处理避免爆红
+
+```java
+if(age < 10){
+    //【    ，10），返回“应该在上小学”
+    throw new GirlException(ResultEnum.PRIMARY_SCHOOL);
+
+}else if (age >= 10 && age <16){
+    //【10，16），返回“可能在上初中”
+    throw new GirlException(ResultEnum.MIDDLE_SCHOOL);
+
+}
+```
+
+GirlException
+
+```java
+public GirlException(ResultEnum resultEnum) {
+    //添加字段message，父类本身就会传一个message进去
+    super(resultEnum.getMsg());
+    this.code = resultEnum.getCode();
+}
+```
+
+验证
+
+> http://localhost:8081/girl/girls/getAge/3
+>
+> {
+>
+> ​    "code": 100,
+>
+> ​    "msg": "可能小学",
+>
+> ​    "data": null
+>
+> }
+>
+> http://localhost:8081/girl/girls/getAge/4
+>
+> {
+>
+> ​    "code": 101,
+>
+> ​    "msg": "可能中学",
+>
+> ​    "data": null
+>
+> }
+>
+> http://localhost:8081/girl/girls/getAge/5
+>
+> {
+>
+> ​    "code": -1,
+>
+> ​    "msg": "未知错误",
+>
+> ​    "data": null
+>
+> }
+
+## git提交-异常处理-枚举
 
