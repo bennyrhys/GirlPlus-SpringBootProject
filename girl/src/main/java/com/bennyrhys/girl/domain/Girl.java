@@ -3,6 +3,7 @@ package com.bennyrhys.girl.domain;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.validation.constraints.Min;
 
 //表示对应数据库对表
 @Entity
@@ -11,6 +12,7 @@ public class Girl {
     @GeneratedValue  //自增
     private Integer id;
     private String cupSize;
+    @Min(value = 18, message = "未成年少女禁止入内")
     private Integer age;
 
     public Girl() {

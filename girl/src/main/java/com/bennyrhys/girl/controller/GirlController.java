@@ -4,8 +4,10 @@ import com.bennyrhys.girl.domain.Girl;
 import com.bennyrhys.girl.repository.GirlRepository;
 import com.bennyrhys.girl.service.GirlService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,11 +47,16 @@ public class GirlController {
      * 插入因为自增注意id冲突
      */
     @PostMapping(value = "/girls")
-    public Girl girlAdd(@RequestParam("cupSize") String cupSize,
-                          @RequestParam("age") Integer age){
-        Girl girl = new Girl();
-        girl.setCupSize("F");
-        girl.setAge(16);
+    //@Valid表示要验证的是这个对象 BindingResult返回验证信息
+    public Girl girlAdd(@Valid Girl girl, BindingResult bindingResult){
+        //判断是否发生错误
+        if (bindingResult.hasErrors()){
+            //打印错误信息
+            System.out.println(bindingResult.getFieldError().getDefaultMessage());
+            return null;
+        }
+        girl.setCupSize(girl.getCupSize());
+        girl.setAge(girl.getAge());
         //save返回添加对对象
         return repository.save(girl);
     }
