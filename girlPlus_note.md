@@ -1,5 +1,9 @@
 [TOC]
 
+
+
+> 作者：bennyrhys@163.com
+
 # @Valid表单验证
 
 ## 背景假设
@@ -503,3 +507,283 @@ public void doAfterReturning(Object object){
 ## git提交
 
 > "AOP日志"
+
+# 统一异常处理
+
+## 封装返回值json
+
+新建Result
+
+- domain包
+  - Result.java
+
+```java
+package com.bennyrhys.girl.domain;
+
+/**
+ * http请求返回对最外层对象
+ */
+//get/set
+public class Result<T> {//具体内容用范型表示
+    //错误码
+    private Integer code;
+    //提示信息
+    private String msg;
+    //具体内容
+    private T data;
+}
+```
+
+GirlController
+
+```java
+/**
+ * 新增一个女生
+ * http://localhost:8081/girl/girls
+ * 注意：post请求
+ *
+ * 参数
+ * cupSize  f
+ * age  16
+ *
+ * 插入因为自增注意id冲突
+ */
+@PostMapping(value = "/girls")
+//@Valid表示要验证的是这个对象 BindingResult返回验证信息
+public Result<Girl> girlAdd(@Valid Girl girl, BindingResult bindingResult){
+    //判断是否发生错误
+    if (bindingResult.hasErrors()){
+        //打印错误信息
+        Result result = new Result();
+        result.setCode(1);
+        result.setMsg(bindingResult.getFieldError().getDefaultMessage());
+        result.setData(null);
+        return result;
+    }
+    girl.setCupSize(girl.getCupSize());
+    girl.setAge(girl.getAge());
+    //save返回添加对对象
+
+    Result result =  new Result();
+    result.setCode(0);
+    result.setMsg("成功");
+    result.setData(repository.save(girl));
+    return result;
+}
+```
+
+## 验证返回json
+
+访问：失败
+
+http://localhost:8081/girl/girls
+
+参数
+
+cupSize	D
+
+age	17
+
+响应信息
+
+>{
+>
+>​    "code": 1,
+>
+>​    "msg": "未成年少女禁止入内",
+>
+>​    "data": null
+>
+>}
+
+参数
+
+
+
+访问：成功
+
+http://localhost:8081/girl/girls
+
+参数
+
+cupSize	D
+
+age	18
+
+响应信息
+
+> {
+>
+> ​    "code": 0,
+>
+> ​    "msg": "成功",
+>
+> ​    "data": {
+>
+> ​        "id": 14,
+>
+> ​        "cupSize": "D",
+>
+> ​        "age": 18
+>
+> ​    }
+>
+> }
+
+## 代码优化-减少重复
+
+新建
+
+- utils包
+  - ResultUtil.java
+
+```java
+package com.bennyrhys.girl.utils;
+
+import com.bennyrhys.girl.domain.Result;
+
+public class ResultUtil {
+    //成功-返回结果
+    public static Result success(Object object){
+        Result result = new Result();
+        result.setCode(0);
+        result.setMsg("成功");
+        result.setData(object);
+        return result;
+    }
+    //成功-没有返回结果
+    public static Result success(){
+        return success(null);
+    }
+    //失败
+    public static Result error(Integer code,String msg){
+        Result result = new Result();
+        result.setCode(code);
+        result.setMsg(msg);
+        return  result;
+    }
+}
+```
+
+GirlController
+
+```java
+/**
+ * 新增一个女生
+ * http://localhost:8081/girl/girls
+ * 注意：post请求
+ *
+ * 参数
+ * cupSize  f
+ * age  16
+ *
+ * 插入因为自增注意id冲突
+ */
+@PostMapping(value = "/girls")
+//@Valid表示要验证的是这个对象 BindingResult返回验证信息
+public Result<Girl> girlAdd(@Valid Girl girl, BindingResult bindingResult){
+    //判断是否发生错误
+    if (bindingResult.hasErrors()){
+        //打印错误信息
+        return ResultUtil.error(1,bindingResult.getFieldError().getDefaultMessage());
+    }
+    girl.setCupSize(girl.getCupSize());
+    girl.setAge(girl.getAge());
+    //save返回添加对对象
+
+    return ResultUtil.success(repository.save(girl));
+}
+```
+
+## 背景假设
+
+获取女生年龄做判断
+
+【	，10），返回“应该在上小学”
+
+【10，16），返回“可能在上初中”
+
+## 业务分析
+
+要如何把信息返回界面？
+
+一般不是简单的一个方法就直接返回页面，业务逻辑复杂，因此一次判断类似一次表单验证，后续还有其他逻辑跟随
+
+- controller判断打标记返回，service继续根据不同标记进行（可以，繁琐，标记乱）
+- 统一处理,从service-》if抛异常，controller继续抛异常（推荐）
+
+## 判断信息-外抛异常获取
+
+GirlService
+
+```java
+/**
+ * 获取女生年龄做判断
+ * 【   ，10），返回“应该在上小学”
+ *
+ * 【10，16），返回“可能在上初中”
+ */
+public void getAge(Integer id)throws Exception{
+    Optional<Girl> optional = repository.findById(id);
+    if (optional.isPresent()){
+        Girl girl = optional.get();
+        Integer age = girl.getAge();
+        if(age < 10){
+            //【    ，10），返回“应该在上小学”
+            throw new Exception("应该在上小学");
+
+        }else if (age >= 10 && age <16){
+            //【10，16），返回“可能在上初中”
+            throw new Exception("可能在上初中");
+
+        }
+    }
+}
+```
+
+GirlController
+
+```java
+/**
+ * 获取女生年龄做判断
+ * 【   ，10），返回“应该在上小学”
+ *
+ * 【10，16），返回“可能在上初中”
+ */
+@GetMapping(value = "/girls/getAge/{id}")
+public void getAge(@PathVariable("id") Integer id)throws Exception{
+    //逻辑在service中判断
+    service.getAge(id);
+}
+```
+
+访问
+
+http://localhost:8081/girl/girls/getAge/3
+
+响应异常信息
+
+> {
+>
+> ​    "timestamp": "2019-12-31T08:41:32.890+0000",
+>
+> ​    "status": 500,
+>
+> ​    "error": "Internal Server Error",
+>
+> ​    "message": "应该在上小学",
+>
+> ​    "path": "/girl/girls/getAge/3"
+>
+> }
+
+控制台
+
+> java.lang.Exception: 应该在上小学
+
+## git提交-判断信息-外抛异常获取
+
+## 捕获异常封装返回json
+
+
+

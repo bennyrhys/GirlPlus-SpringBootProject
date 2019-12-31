@@ -2,8 +2,10 @@ package com.bennyrhys.girl.controller;
 
 import com.bennyrhys.girl.aspect.HttpAspect;
 import com.bennyrhys.girl.domain.Girl;
+import com.bennyrhys.girl.domain.Result;
 import com.bennyrhys.girl.repository.GirlRepository;
 import com.bennyrhys.girl.service.GirlService;
+import com.bennyrhys.girl.utils.ResultUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,17 +58,17 @@ public class GirlController {
      */
     @PostMapping(value = "/girls")
     //@Valid表示要验证的是这个对象 BindingResult返回验证信息
-    public Girl girlAdd(@Valid Girl girl, BindingResult bindingResult){
+    public Result<Girl> girlAdd(@Valid Girl girl, BindingResult bindingResult){
         //判断是否发生错误
         if (bindingResult.hasErrors()){
             //打印错误信息
-            System.out.println(bindingResult.getFieldError().getDefaultMessage());
-            return null;
+            return ResultUtil.error(1,bindingResult.getFieldError().getDefaultMessage());
         }
         girl.setCupSize(girl.getCupSize());
         girl.setAge(girl.getAge());
         //save返回添加对对象
-        return repository.save(girl);
+
+        return ResultUtil.success(repository.save(girl));
     }
     /**
      * 通过id查询一个女生
@@ -155,6 +157,18 @@ public class GirlController {
     @PostMapping(value = "/girls/two")
     public void girlsTwo(){
         service.changgeTwo();
+    }
+
+    /**
+     * 获取女生年龄做判断
+     * 【	，10），返回“应该在上小学”
+     *
+     * 【10，16），返回“可能在上初中”
+     */
+    @GetMapping(value = "/girls/getAge/{id}")
+    public void getAge(@PathVariable("id") Integer id)throws Exception{
+        //逻辑在service中判断
+        service.getAge(id);
     }
 
 }
