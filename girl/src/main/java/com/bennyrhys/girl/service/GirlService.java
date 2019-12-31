@@ -48,8 +48,19 @@ public class GirlService {
             }else if (age >= 10 && age <16){
                 //【10，16），返回“可能在上初中”
                 throw new GirlException(ResultEnum.MIDDLE_SCHOOL);
-
             }
         }
+    }
+    /**
+     * 测试service
+     * 通过id查询一个女生信息并返回
+     */
+    public Girl findOne(Integer id){
+        Optional<Girl> optional = repository.findById(id);
+        if (optional.isPresent()){
+            Girl girl = optional.get();
+            return girl;
+        }
+        return null;
     }
 }

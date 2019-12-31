@@ -1129,3 +1129,181 @@ public GirlException(ResultEnum resultEnum) {
 
 ## git提交-异常处理-枚举
 
+# 单元测试
+
+## 测试service
+
+GirlService
+
+```java
+/**
+ * 测试service
+ * 通过id查询一个女生信息并返回
+ */
+public Girl findOne(Integer id){
+    Optional<Girl> optional = repository.findById(id);
+    if (optional.isPresent()){
+        Girl girl = optional.get();
+        return girl;
+    }
+    return null;
+}
+```
+
+法一：GirlServiceTest //手动test包下创建
+
+```java
+package com.bennyrhys.girl;
+
+import com.bennyrhys.girl.domain.Girl;
+import com.bennyrhys.girl.service.GirlService;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.util.Assert;
+
+@SpringBootTest //启动整个spring工程
+public class GirlServiceTest {
+    @Autowired
+    private GirlService girlService;
+
+    @Test
+    public void findOneTest(){
+        Girl girl = girlService.findOne(3);
+      //断言比较，测试通过 新版本适用Assertions
+        Assertions.assertEquals(9,girl.getAge());
+    }
+}
+```
+
+法二：service方法上goto-》test	自动创建
+
+test包下自动创建
+
+```java
+package com.bennyrhys.girl.service;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * 自动创建的测试unit5
+ */
+class GirlServiceTest {
+
+    @Test
+    void findOne() {
+    }
+}
+```
+
+## 测试API
+
+contoller-》getlist-〉goto自动创建
+
+```java
+package com.bennyrhys.girl.controller;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+
+import static org.junit.jupiter.api.Assertions.*;
+@SpringBootTest
+@AutoConfigureMockMvc //检测api
+class GirlControllerTest {
+
+    @Autowired
+    private GirlController girlController;
+    @Autowired
+    private MockMvc mvc;
+
+    @Test
+    void girlList() throws Exception {
+//        不是这样测试，这样测试没有报错，但没检测到api及请求类型
+//        girlController.girlList();
+        mvc.perform(MockMvcRequestBuilders.get("/girls"))
+                .andExpect(MockMvcResultMatchers.status().isOk()) //期望返回状态码200，测试通过
+                .andExpect(MockMvcResultMatchers.content().string("abc")); //期望返回string=abc，测试肯定不通过
+/**
+ * 检测abc返回，控制台输出
+ * Expected :abc
+ * Actual   :[{"id":3,"cupSize":"G","age":9},{"id":4,"cupSize":"G","age":15},{"id":5,"cupSize":"F","age":22},{"id":6,"cupSize":"F","age":16},{"id":7,"cupSize":"F","age":16},{"id":8,"cupSize":"C","age":22},{"id":9,"cupSize":"C","age":20},{"id":10,"cupSize":"C","age":18},{"id":11,"cupSize":"D","age":19},{"id":12,"cupSize":"D","age":18},{"id":13,"cupSize":"D","age":18},{"id":14,"cupSize":"D","age":18},{"id":15,"cupSize":"D","age":18}]
+ */
+    }
+}
+```
+
+## 测试用例每个都要手动？
+
+不需要，打包时自动测试统计成功失败
+
+>//项目根目录命令打包自动检测
+>
+>mvn clean package
+>
+>
+>
+>//之前故意放了一个错误测试
+>
+>[ERROR] Failures: 
+>
+>[ERROR]  GirlControllerTest.girlList:27 Response content expected:<abc> but was:<[{"id":3,"cupSize":"G","age":9},{"id":4,"cupSize":"G","age":15},{"id":5,"cupSize":"F","age":22},{"id":6,"cupSize":"F","age":16},{"id":7,"cupSize":"F","age":16},{"id":8,"cupSize":"C","age":22},{"id":9,"cupSize":"C","age":20},{"id":10,"cupSize":"C","age":18},{"id":11,"cupSize":"D","age":19},{"id":12,"cupSize":"D","age":18},{"id":13,"cupSize":"D","age":18},{"id":14,"cupSize":"D","age":18},{"id":15,"cupSize":"D","age":18}]>
+>
+>[INFO] 
+>
+>[ERROR] Tests run: 4, Failures: 1, Errors: 0, Skipped: 0
+>
+>
+>
+>//改正错误test
+>
+>[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+>
+>[INFO] 
+>
+>[INFO] 
+>
+>[INFO] --- maven-jar-plugin:3.1.2:jar (default-jar) @ girl ---
+>
+>[INFO] Building jar: /Users/bennyrhys/Documents/Idea_Demo/GirlPlus-SpringBootProject/girl/target/girl-0.0.1-SNAPSHOT.jar
+>
+>[INFO] 
+>
+>[INFO] --- spring-boot-maven-plugin:2.2.2.RELEASE:repackage (repackage) @ girl ---
+>
+>[INFO] Replacing main artifact with repackaged archive
+>
+>[INFO] ------------------------------------------------------------------------
+>
+>[INFO] BUILD SUCCESS
+>
+>
+
+跳过单元测试
+
+> //根目录下meaven命令
+>
+>  mvn clean package -Dmaven.test.skip=true
+>
+> //跳过测试，直接打包成功
+>
+> [INFO] BUILD SUCCESS
+>
+> [INFO] ------------------------------------------------------------------------
+>
+> [INFO] Total time: 3.761 s
+>
+> [INFO] Finished at: 2019-12-31T18:43:07+08:00
+>
+> [INFO] ------------------------------------------------------------------------
+>
+> bennyrhysdeMacBook-Pro:girl bennyrhys$ 
+
+## git提交-单元测试
