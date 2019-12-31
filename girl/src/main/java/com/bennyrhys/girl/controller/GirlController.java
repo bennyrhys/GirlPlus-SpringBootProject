@@ -1,8 +1,11 @@
 package com.bennyrhys.girl.controller;
 
+import com.bennyrhys.girl.aspect.HttpAspect;
 import com.bennyrhys.girl.domain.Girl;
 import com.bennyrhys.girl.repository.GirlRepository;
 import com.bennyrhys.girl.service.GirlService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +22,10 @@ public class GirlController {
     @Autowired
     private GirlService service;
 
+    //日志输出slf4j
+    private final static Logger logger = LoggerFactory.getLogger(GirlController.class);
+
+
     /**
      * 查询所有女生列表
      * @return
@@ -33,6 +40,7 @@ public class GirlController {
      */
     @GetMapping(value = "/girls")
     public List<Girl> girlList(){
+        logger.info("girlList测试检测顺序");
         return repository.findAll();
     }
     /**

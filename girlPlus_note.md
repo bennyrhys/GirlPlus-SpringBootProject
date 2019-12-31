@@ -138,9 +138,7 @@ http://localhost:8081/girl/girls
 
 ## git提交
 
->
->
->
+>git commit -m "@Valid表单验证"
 
 # AOP统一处理请求日志
 
@@ -168,3 +166,340 @@ http://localhost:8081/girl/girls
         </dependency>
 ```
 
+## 新建aspect拦截
+
+- aspect包
+  - HttpAspect.java
+
+```java
+package com.bennyrhys.girl.aspect;
+
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
+@Aspect //aop标识
+@Component //添加到容器
+public class HttpAspect {
+    //拦截方法：加两个..表示任何参数都会被拦截
+    @Before("execution(public * com.bennyrhys.girl.controller.GirlController.girlList(..))")
+    //先定方法不然没上方提示
+    public void log(){
+        System.out.println("llllllll");
+    }
+}
+```
+
+检测类下所有方法/*
+
+```java
+@Before("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+```
+
+
+
+## 验证拦截
+
+查询列表
+
+http://localhost:8081/girl/girls
+
+```
+[{"id":3,"cupSize":"G","age":20},{"id":4,"cupSize":"G","age":20},{"id":5,"cupSize":"F","age":22},{"id":6,"cupSize":"F","age":16},{"id":7,"cupSize":"F","age":16},{"id":8,"cupSize":"C","age":22},{"id":9,"cupSize":"C","age":20},{"id":10,"cupSize":"C","age":18}]
+```
+
+控制台
+
+>llllllll //被过滤
+>Hibernate: select girl0_.id as id1_0_, girl0_.age as age2_0_, girl0_.cup_size as cup_size3_0_ from girl girl0_
+
+增加少女
+
+http://localhost:8081/girl/girls
+
+>//未被过滤检测
+>
+>Hibernate: select next_val as id_val from hibernate_sequence for update
+>Hibernate: update hibernate_sequence set next_val= ? where next_val=?
+>Hibernate: insert into girl (age, cup_size, id) values (?, ?, ?)
+
+## 拦截顺序
+
+HttpAspect
+
+```java
+package com.bennyrhys.girl.aspect;
+
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.stereotype.Component;
+
+@Aspect //aop标识
+@Component //添加到容器
+public class HttpAspect {
+    //@Before方法执行之前就执行了
+    //拦截方法：加两个..表示任何参数都会被拦截
+    @Before("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+    //先定方法不然没上方提示
+    public void log(){
+        System.out.println("llllllll");
+    }
+
+
+    @After("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+    //先定方法不然没上方提示
+    public void doAfter(){
+        System.out.println("22222222");
+    }
+}
+```
+
+GirlController
+
+```java
+/**
+ * 查询所有女生列表
+ * @return
+ * http://localhost:8081/girl/girls
+ * [
+ *     {
+ *         "id": 1,
+ *         "cupSize": "B",
+ *         "age": 18
+ *     }
+ * ]
+ */
+@GetMapping(value = "/girls")
+public List<Girl> girlList(){
+    System.out.println("girlList测试检测顺序");
+    return repository.findAll();
+}
+```
+
+控制台打印
+
+> llllllll
+> girlList测试检测顺序
+> Hibernate: select girl0_.id as id1_0_, girl0_.age as age2_0_, girl0_.cup_size as cup_size3_0_ from girl girl0_
+> 22222222
+
+## 简化拦截代码
+
+HttpAspect
+
+```java
+package com.bennyrhys.girl.aspect;
+
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.stereotype.Component;
+
+@Aspect //aop标识
+@Component //添加到容器
+public class HttpAspect {
+    //提取公共方法
+    //拦截方法：加两个..表示任何参数都会被拦截
+    @Pointcut("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+    //先定方法不然没上方提示
+    public void log(){
+        System.out.println("1111");
+    }
+
+    //@Before方法执行之前就执行了
+    @Before("log()")
+    public void doBefore(){
+        System.out.println("11111111");
+    }
+
+
+    @After("log()")
+    //先定方法不然没上方提示
+    public void doAfter(){
+        System.out.println("22222222");
+    }
+}
+```
+
+控制台
+
+>http://localhost:8081/girl/girls
+>
+>11111111
+>girlList测试检测顺序
+>Hibernate: select girl0_.id as id1_0_, girl0_.age as age2_0_, girl0_.cup_size as cup_size3_0_ from girl girl0_
+>22222222
+
+## 日志替换print输出
+
+**HttpAspect**
+
+//日志输出slf4j **注意类名切换**
+    private final static Logger logger = LoggerFactory.getLogger(HttpAspect.class);
+
+//打印
+
+ logger.info("222222222");
+
+```java
+package com.bennyrhys.girl.aspect;
+
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Aspect //aop标识
+@Component //添加到容器
+public class HttpAspect {
+
+    //日志输出slf4j
+    private final static Logger logger = LoggerFactory.getLogger(HttpAspect.class);
+
+
+    //提取公共方法
+    //拦截方法：加两个..表示任何参数都会被拦截
+    @Pointcut("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+    //先定方法不然没上方提示
+    public void log(){
+    }
+
+    //@Before方法执行之前就执行了
+    @Before("log()")
+    public void doBefore(){
+        logger.info("111111111");
+    }
+
+
+    @After("log()")
+    //先定方法不然没上方提示
+    public void doAfter(){
+        logger.info("222222222");
+    }
+}
+```
+
+GirlController
+
+```java
+//日志输出slf4j
+private final static Logger logger = LoggerFactory.getLogger(GirlController.class);
+        logger.info("girlList测试检测顺序");
+```
+
+
+
+>2019-12-31 10:07:19.744  INFO 1684 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : 
+>
+>111111111
+>2019-12-31 10:07:19.749  INFO 1684 --- [nio-8081-exec-1] c.b.girl.controller.GirlController       : girlList测试检测顺序
+>Hibernate: select girl0_.id as id1_0_, girl0_.age as age2_0_, girl0_.cup_size as cup_size3_0_ from girl girl0_
+>2019-12-31 10:07:19.851  INFO 1684 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : 222222222
+
+## 日志获取请求信息
+
+HttpAspect
+
+```java
+package com.bennyrhys.girl.aspect;
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import javax.servlet.http.HttpServletRequest;
+
+@Aspect //aop标识
+@Component //添加到容器
+public class HttpAspect {
+
+    //日志输出slf4j 注意类名切换
+    private final static Logger logger = LoggerFactory.getLogger(HttpAspect.class);
+
+
+    //提取公共方法
+    //拦截方法：加两个..表示任何参数都会被拦截
+    @Pointcut("execution(public * com.bennyrhys.girl.controller.GirlController.*(..))")
+    //先定方法不然没上方提示
+    public void log(){
+    }
+
+    //@Before方法执行之前就执行了
+    @Before("log()")
+    public void doBefore(JoinPoint joinPoint){
+        //此处强转
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        //import javax.servlet.http.HttpServletRequest;
+        HttpServletRequest request = attributes.getRequest();
+        //url
+        logger.info("url={}", request.getRequestURL());
+        //method
+        logger.info("method={}",request.getMethod());
+        //ip
+        logger.info("ip={}",request.getRemoteAddr());
+        //类方法 参数传入doBefore(JoinPoint joinPoint)
+        //类名：getDeclaringTypeName类方法：getName
+        logger.info("class_method={}", joinPoint.getSignature().getDeclaringTypeName()+"."+joinPoint.getSignature().getName());
+        //参数
+        logger.info("args={}", joinPoint.getArgs());
+    }
+
+
+    @After("log()")
+    //先定方法不然没上方提示
+    public void doAfter(){
+        logger.info("222222222");
+    }
+}
+```
+
+控制台
+
+>2019-12-31 10:27:11.554  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : url=http://localhost:8081/girl/girls/6
+>2019-12-31 10:27:11.554  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : method=GET
+>2019-12-31 10:27:11.554  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : ip=0:0:0:0:0:0:0:1
+>2019-12-31 10:27:11.555  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : class_method=com.bennyrhys.girl.controller.GirlController.girlFindById
+>2019-12-31 10:27:11.555  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : args=6
+>Hibernate: select girl0_.id as id1_0_0_, girl0_.age as age2_0_0_, girl0_.cup_size as cup_size3_0_0_ from girl girl0_ where girl0_.id=?
+>2019-12-31 10:27:11.603  INFO 1816 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : 222222222
+
+## 日志获取响应信息
+
+HttpAspect
+
+```java
+//日志获取响应信息
+//入参：returning 注意：toString方法，否则输出是对象
+@AfterReturning(returning = "object", pointcut = "log()")
+public void doAfterReturning(Object object){
+    logger.info("response={}", object.toString());
+}
+```
+
+控制台
+
+>2019-12-31 10:36:42.905  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : url=http://localhost:8081/girl/girls/6
+>2019-12-31 10:36:42.905  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : method=GET
+>2019-12-31 10:36:42.905  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : ip=0:0:0:0:0:0:0:1
+>2019-12-31 10:36:42.907  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : class_method=com.bennyrhys.girl.controller.GirlController.girlFindById
+>2019-12-31 10:36:42.907  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : args=6
+>Hibernate: select girl0_.id as id1_0_0_, girl0_.age as age2_0_0_, girl0_.cup_size as cup_size3_0_0_ from girl girl0_ where girl0_.id=?
+>2019-12-31 10:36:42.952  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : 222222222
+>2019-12-31 10:36:42.952  INFO 1885 --- [nio-8081-exec-1] com.bennyrhys.girl.aspect.HttpAspect     : response=Girl{id=6, cupSize='F', age=16}
+
+## git提交
+
+> "AOP日志"
